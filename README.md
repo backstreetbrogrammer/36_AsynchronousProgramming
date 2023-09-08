@@ -11,7 +11,7 @@ Tools used:
 
 ## Table of contents
 
-1. Introduction to asynchronous programming
+1. [Introduction to asynchronous programming](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-01-introduction-to-asynchronous-programming)
 2. Chaining tasks
 3. Splitting tasks
 4. Controlling threads executing tasks
@@ -24,7 +24,7 @@ Tools used:
 
 Having **high performance** and **availability** are essential parts of modern software development.
 
-This can be simply termed as we need to write applications which has **maximum throughput** and **lowest latency**.
+In other words, we need to write applications which has **maximum throughput** and **lowest latency**.
 
 **Throughput**
 
