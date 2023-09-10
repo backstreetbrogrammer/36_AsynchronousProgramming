@@ -13,8 +13,8 @@ Tools used:
 
 1. [Introduction to asynchronous programming](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-01-introduction-to-asynchronous-programming)
     - [Synchronous vs Asynchronous](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#synchronous-vs-asynchronous)
-    - [Interview Problem 1 (SCB): Design an API to fetch the best market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#synchronous-vs-asynchronous)
-2. Chaining tasks
+    - [Interview Problem 1 (SCB): Design an API to fetch the best market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-1-scb-design-an-api-to-fetch-the-best-market-data-from-different-providers)
+2. [Chaining tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-02-chaining-tasks)
 3. Splitting tasks
 4. Controlling threads executing tasks
 5. Error handling
@@ -431,3 +431,6 @@ Best price [CF ] = MarketData{server='Reuters', symbol='META', price=56.48773820
 As seen from the above results, fetching the data **asynchronously** helps to increase the **throughput** of the
 application.
 
+---
+
+## Chapter 02. Chaining tasks
