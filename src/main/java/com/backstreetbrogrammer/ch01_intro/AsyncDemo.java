@@ -2,7 +2,7 @@ package com.backstreetbrogrammer.ch01_intro;
 
 public class AsyncDemo {
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         /*ExecutorService service = ...;
         HTTPClient client = ...;
         Future<String> future =

@@ -12,6 +12,8 @@ Tools used:
 ## Table of contents
 
 1. [Introduction to asynchronous programming](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-01-introduction-to-asynchronous-programming)
+    - [Synchronous vs Asynchronous](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#synchronous-vs-asynchronous)
+    - [Interview Problem 1 (SCB): Design an API to fetch the best market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#synchronous-vs-asynchronous)
 2. Chaining tasks
 3. Splitting tasks
 4. Controlling threads executing tasks
@@ -126,5 +128,306 @@ thread is free to do something else.
 
 We can get the response through this `future` object By calling `future.get()`, which is a blocking call.
 
+### Interview Problem 1 (SCB): Design an API to fetch the best market data from different providers
 
+We have 3 different stock market data providers which provide market data in real time.
+
+Design an API to select the market data which has got the best (lowest) price to buy a stock.
+
+**Solution**
+
+`MarketData` class:
+
+```java
+public class MarketData {
+
+    private final String server;
+    private final String symbol;
+    private final double price;
+
+    public MarketData(final String server, final String symbol, final double price) {
+        this.server = server;
+        this.symbol = symbol;
+        this.price = price;
+    }
+
+    public String getServer() {
+        return server;
+    }
+
+    public String getSymbol() {
+        return symbol;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    @Override
+    public String toString() {
+        return "MarketData{" +
+                "server='" + server + '\'' +
+                ", symbol='" + symbol + '\'' +
+                ", price=" + price +
+                '}';
+    }
+}
+```
+
+- First Approach: Using **Synchronous** API
+
+```java
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+
+public class FetchMarketDataSynchronously {
+
+    public static void main(final String[] args) {
+        run();
+    }
+
+    public static void run() {
+        final ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        final Callable<MarketData> fetchMarketDataReuters =
+                () -> {
+                    TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    return new MarketData("Reuters", "META", random.nextDouble(40D, 60D));
+                };
+
+        final Callable<MarketData> fetchMarketDataBloomberg =
+                () -> {
+                    TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    return new MarketData("Bloomberg", "META", random.nextDouble(30D, 70D));
+                };
+
+        final Callable<MarketData> fetchMarketDataExegy =
+                () -> {
+                    TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    return new MarketData("Exegy", "META", random.nextDouble(40D, 80D));
+                };
+
+        final var marketDataTasks =
+                List.of(fetchMarketDataReuters, fetchMarketDataBloomberg, fetchMarketDataExegy);
+
+        final Instant start = Instant.now();
+        final MarketData bestMarketData =
+                marketDataTasks.stream()
+                               .map(FetchMarketDataSynchronously::fetchMarketData)
+                               .min(Comparator.comparing(MarketData::getPrice))
+                               .orElseThrow();
+        final long timeElapsed = Duration.between(start, Instant.now()).toMillis();
+        System.out.printf("Best price [SYNC ] = %s (%d ms)%n", bestMarketData, timeElapsed);
+    }
+
+    private static MarketData fetchMarketData(final Callable<MarketData> task) {
+        try {
+            return task.call();
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+}
+```
+
+**Sample Output**
+
+```
+Best price [SYNC ] = MarketData{server='Exegy', symbol='META', price=41.398256277344316} (360 ms)
+```
+
+Running it multiple times gives us an average of `280-380 ms`.
+
+- Second Approach: Using **Asynchronous** API with `ExecutorService`
+
+```java
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.*;
+
+public class FetchMarketDataAsynchronouslyExecutorService {
+
+    public static void main(final String[] args) throws ExecutionException, InterruptedException {
+        final ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        final Callable<MarketData> fetchMarketDataReuters =
+                () -> {
+                    TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    return new MarketData("Reuters", "META", random.nextDouble(40D, 60D));
+                };
+
+        final Callable<MarketData> fetchMarketDataBloomberg =
+                () -> {
+                    TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    return new MarketData("Bloomberg", "META", random.nextDouble(30D, 70D));
+                };
+
+        final Callable<MarketData> fetchMarketDataExegy =
+                () -> {
+                    TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    return new MarketData("Exegy", "META", random.nextDouble(40D, 80D));
+                };
+
+        final var marketDataTasks =
+                List.of(fetchMarketDataReuters, fetchMarketDataBloomberg, fetchMarketDataExegy);
+
+        final var executor = Executors.newFixedThreadPool(4);
+        final Instant start = Instant.now();
+
+        // run all the tasks asynchronously
+        final List<Future<MarketData>> futures = executor.invokeAll(marketDataTasks);
+
+        final List<MarketData> marketDataList = new ArrayList<>();
+        for (final Future<MarketData> future : futures) {
+            final MarketData marketData = future.get();
+            marketDataList.add(marketData);
+        }
+
+        final MarketData bestMarketData =
+                marketDataList.stream()
+                              .min(Comparator.comparing(MarketData::getPrice))
+                              .orElseThrow();
+
+        final long timeElapsed = Duration.between(start, Instant.now()).toMillis();
+        System.out.printf("Best price [ES ] = %s (%d ms)%n", bestMarketData, timeElapsed);
+
+        executor.shutdown();
+    }
+
+}
+```
+
+**Sample Output**
+
+```
+Best price [ES ] = MarketData{server='Reuters', symbol='META', price=56.48773820323322} (130 ms)
+```
+
+Running it multiple times gives us an average of `120-135 ms`.
+
+- Final Approach: Using **Asynchronous** API with `CompletableFuture`
+
+```java
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+public class FetchMarketDataAsynchronouslyCompletableFuture {
+
+    public static void main(final String[] args) {
+        run();
+    }
+
+    public static void run() {
+        final ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        final Supplier<MarketData> fetchMarketDataReuters =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Reuters", "META", random.nextDouble(40D, 60D));
+                };
+
+        final Supplier<MarketData> fetchMarketDataBloomberg =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Bloomberg", "META", random.nextDouble(30D, 70D));
+                };
+
+        final Supplier<MarketData> fetchMarketDataExegy =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Exegy", "META", random.nextDouble(40D, 80D));
+                };
+
+        final var marketDataTasks =
+                List.of(fetchMarketDataReuters, fetchMarketDataBloomberg, fetchMarketDataExegy);
+
+        final Instant start = Instant.now();
+
+        // run all the tasks asynchronously
+        final List<CompletableFuture<MarketData>> futures = new ArrayList<>();
+        for (final Supplier<MarketData> task : marketDataTasks) {
+            final CompletableFuture<MarketData> future = CompletableFuture.supplyAsync(task);
+            futures.add(future);
+        }
+
+        final List<MarketData> marketDataList = new ArrayList<>();
+        for (final CompletableFuture<MarketData> future : futures) {
+            final MarketData marketData = future.join();
+            marketDataList.add(marketData);
+        }
+
+        final MarketData bestMarketData =
+                marketDataList.stream()
+                              .min(Comparator.comparing(MarketData::getPrice))
+                              .orElseThrow();
+
+        final long timeElapsed = Duration.between(start, Instant.now()).toMillis();
+        System.out.printf("Best price [CF ] = %s (%d ms)%n", bestMarketData, timeElapsed);
+    }
+
+}
+```
+
+**Sample Output**
+
+```
+Best price [CF ] = MarketData{server='Bloomberg', symbol='META', price=35.023580893186185} (143 ms)
+```
+
+Running it multiple times gives us an average of `130-145 ms`.
+
+- Running all the tasks together to better compare the performance
+
+```java
+import java.util.concurrent.ExecutionException;
+
+public class FetchMarketDataAll {
+
+    public static void main(final String[] args) throws ExecutionException, InterruptedException {
+        FetchMarketDataSynchronously.run();
+        FetchMarketDataAsynchronouslyExecutorService.run();
+        FetchMarketDataAsynchronouslyCompletableFuture.run();
+    }
+
+}
+```
+
+**Sample Output**
+
+```
+Best price [SYNC ] = MarketData{server='Reuters', symbol='META', price=58.52626690961024} (316 ms)
+Best price [ES ] = MarketData{server='Reuters', symbol='META', price=56.48773820323322} (123 ms)
+Best price [CF ] = MarketData{server='Reuters', symbol='META', price=56.48773820323322} (126 ms)
+```
+
+As seen from the above results, fetching the data **asynchronously** helps to increase the **throughput** of the
+application.
 
