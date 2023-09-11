@@ -13,6 +13,7 @@ Tools used:
 
 1. [Introduction to asynchronous programming](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-01-introduction-to-asynchronous-programming)
     - [Synchronous vs Asynchronous](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#synchronous-vs-asynchronous)
+    - [Introduction to CompletableFuture](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#introduction-to-completablefuture)
     - [Interview Problem 1 (SCB): Design an API to fetch the best market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-1-scb-design-an-api-to-fetch-the-best-market-data-from-different-providers)
 2. [Chaining tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-02-chaining-tasks)
 3. Splitting tasks
@@ -127,6 +128,98 @@ The call to `get()` is still a **blocking** call, but blocks another thread and 
 thread is free to do something else.
 
 We can get the response through this `future` object By calling `future.get()`, which is a blocking call.
+
+### Introduction to CompletableFuture
+
+Java 8's Concurrent API introduced `CompletableFuture`, a valuable tool for simplifying asynchronous and non-blocking
+programming.
+
+The `CompletableFuture` class implements `CompletionStage` interface and the `Future` interface.
+
+`CompletableFuture` offers an extensive API consisting of more than `50` methods. Many of these methods are available in
+two variants: **non-async** and **async**.
+
+**Non-async methods**
+
+```
+    @Test
+    void testNonAsyncMethod() throws ExecutionException, InterruptedException {
+        final CompletableFuture<String> greetings = CompletableFuture.supplyAsync(() -> "Hello Students");
+        final CompletableFuture<Integer> greetingsLength = greetings.thenApply(value -> {
+            System.out.println(Thread.currentThread().getName());
+            return value.length();
+        });
+        assertEquals(14, greetingsLength.get());
+    }
+```
+
+**Sample output**
+
+```
+ForkJoinPool.commonPool-worker-3
+(or)
+main
+```
+
+When utilizing `thenApply()`, we pass a function as a parameter that takes the previous value of the `CompletableFuture`
+as input, performs an operation, and returns a new value. Consequently, a fresh `CompletableFuture` is created to
+encapsulate the resulting value.
+
+The function passed as a parameter to `thenApply()` will be executed by the thread that directly interacts with
+`CompletableFuture`'s API, in our case, the `main` thread **OR** `ForkJoinPool.commonPool()` thread.
+
+**Async methods**
+
+The majority of methods within the API possess an **asynchronous** counterpart. We can use these `async` variants to
+ensure that the intermediate operations are executed on a separate thread pool. Let's change the previous code example
+and switch from `thenApply()` to `thenApplyAsync()`:
+
+```
+    @Test
+    void testAsyncMethod() throws ExecutionException, InterruptedException {
+        final CompletableFuture<String> greetings = CompletableFuture.supplyAsync(() -> "Hello Students");
+        final CompletableFuture<Integer> greetingsLength = greetings.thenApplyAsync(value -> {
+            System.out.println(Thread.currentThread().getName());
+            return value.length();
+        });
+        assertEquals(14, greetingsLength.get());
+    }
+```
+
+**Sample output**
+
+```
+ForkJoinPool.commonPool-worker-3
+```
+
+If we use the `async` methods without explicitly providing an `Executor`, the functions will be executed using
+`ForkJoinPool.commonPool()` thread.
+
+Printing the same example using `Executor`:
+
+```
+    @Test
+    void testAsyncMethodUsingExecutor() throws ExecutionException, InterruptedException {
+        final Executor testExecutor = Executors.newFixedThreadPool(4);
+        final CompletableFuture<String> greetings = CompletableFuture.supplyAsync(() -> "Hello Students");
+        final CompletableFuture<Integer> greetingsLength = greetings.thenApplyAsync(value -> {
+            System.out.println(Thread.currentThread().getName());
+            return value.length();
+        }, testExecutor);
+        assertEquals(14, greetingsLength.get());
+    }
+```
+
+**Sample output**
+
+```
+pool-1-thread-1
+```
+
+This is the thread name given to the thread pool in `Executor`.
+
+As expected, when using the overloaded method, the `CompletableFuture` will no longer use the common `ForkJoinPool`
+threads but the `Executor` thread pool.
 
 ### Interview Problem 1 (SCB): Design an API to fetch the best market data from different providers
 
@@ -434,3 +527,63 @@ application.
 ---
 
 ## Chapter 02. Chaining tasks
+
+We can trigger an **async** task after the **completion** of another **async** task. In this way, we can chain
+multiple **async** tasks.
+
+Let's take an example where:
+
+- we get **MarketData** from a provider
+- then we store it in **Database**
+- then we send the **Database** details in the **email** to the backoffice team.
+
+**Code snippet**
+
+```
+        final ExecutorService executor = Executors.newFixedThreadPool(4);
+
+        final Future<MarketData> futureMarketData = executor.submit(() -> getMarketData());
+        final MarketData marketData = futureMarketData.get();
+
+        final Future<Database> futureDB = executor.submit(() -> writeToDB(marketData));
+        final Database db = futureDB.get();
+
+        final Future<Email> futureEmail = executor.submit(() -> emailDatabaseDetails(db));
+        final Email email = futureEmail.get();
+
+        // continue....
+```
+
+A thread is a scarce resource and blocking a thread for a long time is expensive!
+
+We want to avoid having to get the result back to the `main` thread.
+
+The **solution** is to trigger a task on the outcome of another task.
+
+We can also trigger **multiple** tasks after the outcome of **one** task and also trigger **one** task after the outcome
+of **multiple** tasks.
+
+**Code snippet**
+
+```
+        final CompletableFuture<MarketData> marketDataCF = CompletableFuture.supplyAsync(() -> getMarketData());
+        final CompletableFuture<Database> dbCF = marketDataCF.thenApply(marketData -> writeToDB(marketData));
+        final CompletableFuture<Email> emailCF = dbCF.thenApply(db -> emailDatabaseDetails(db));
+
+        // continue....
+        
+        // if want to wait for all the independent tasks like CountDownLatch
+        // CompletableFuture.allOf(marketDataCF, dbCF, emailCF).join();
+```
+
+Besides having `thenApply()` method, there are several other methods available in
+[CompletionStage API](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/CompletionStage.html)
+
+The main methods are:
+
+```
+stage.thenApply(x -> square(x))                // Function
+      .thenAccept(x -> System.out.print(x))    // Consumer
+      .thenRun(() -> System.out.println());    // Runnable
+```
+

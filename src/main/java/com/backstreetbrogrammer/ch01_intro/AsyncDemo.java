@@ -1,18 +1,17 @@
 package com.backstreetbrogrammer.ch01_intro;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
 public class AsyncDemo {
 
-    public static void main(final String[] args) {
-        /*ExecutorService service = ...;
-        HTTPClient client = ...;
-        Future<String> future =
-                service.submit(() – >
-                        client.get("http://www.mydata.com/data"));
-        // do some other stuff
-        String response = future.get();
-
-        List<String> strings = ...;
-        strings.forEach(s -> System.out.println(s));*/
+    public static void main(final String[] args) throws ExecutionException, InterruptedException {
+        final CompletableFuture<String> greetings = CompletableFuture.supplyAsync(() -> "Hello Students");
+        final CompletableFuture<Integer> greetingsLength = greetings.thenApply(value -> {
+            System.out.println(Thread.currentThread().getName());
+            return value.length();
+        });
+        System.out.println(greetingsLength.get());
     }
 
 }

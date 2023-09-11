@@ -1,4 +1,4 @@
-package com.backstreetbrogrammer.ch01_intro;
+package com.backstreetbrogrammer.model;
 
 public class MarketData {
 
@@ -10,14 +10,6 @@ public class MarketData {
         this.server = server;
         this.symbol = symbol;
         this.price = price;
-    }
-
-    public String getServer() {
-        return server;
-    }
-
-    public String getSymbol() {
-        return symbol;
     }
 
     public double getPrice() {

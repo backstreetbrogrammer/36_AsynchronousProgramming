@@ -1,5 +1,7 @@
 package com.backstreetbrogrammer.ch01_intro;
 
+import com.backstreetbrogrammer.model.MarketData;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
