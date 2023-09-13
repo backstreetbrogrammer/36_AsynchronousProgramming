@@ -19,6 +19,9 @@ Tools used:
     - [Interview Problem 1 (SCB): Design an API to fetch the best price market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-1-scb-design-an-api-to-fetch-the-best-price-market-data-from-different-providers)
 2. [Chaining tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-02-chaining-tasks)
 3. [Splitting tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-03-splitting-tasks)
+    - [Interview Problem 2 (SCB): Design an API to consume the fastest first market data received from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-2-scb-design-an-api-to-consume-the-fastest-first-market-data-received-from-different-providers)
+        - [Follow Up 1: Design an API to get the best price market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#follow-up-1-design-an-api-to-get-the-best-price-market-data-from-different-providers)
+    - [Chaining asynchronous tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chaining-asynchronous-tasks)
 4. Controlling threads executing tasks
 5. Error handling
 6. Best patterns
