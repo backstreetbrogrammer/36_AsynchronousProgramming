@@ -17,14 +17,13 @@ Tools used:
         - [Using CompletableFuture as a Simple Future](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#using-completablefuture-as-a-simple-future)
         - [CompletableFuture sync and async methods](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#completablefuture-sync-and-async-methods)
     - [Interview Problem 1 (SCB): Design an API to fetch the best price market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-1-scb-design-an-api-to-fetch-the-best-price-market-data-from-different-providers)
-2. [Chaining tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-02-chaining-tasks)
-3. [Splitting tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-03-splitting-tasks)
+2. [Chaining and Splitting tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-02-chaining-and-splitting-tasks)
     - [Interview Problem 2 (SCB): Design an API to consume the fastest first market data received from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-2-scb-design-an-api-to-consume-the-fastest-first-market-data-received-from-different-providers)
         - [Follow Up 1: Design an API to get the best price market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#follow-up-1-design-an-api-to-get-the-best-price-market-data-from-different-providers)
     - [Chaining asynchronous tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chaining-asynchronous-tasks)
-4. Controlling threads executing tasks
-5. Error handling
-6. Best patterns
+3. Controlling threads executing tasks
+4. Error handling
+5. Best patterns
 
 ---
 
@@ -609,7 +608,7 @@ application.
 
 ---
 
-## Chapter 02. Chaining tasks
+## Chapter 02. Chaining and Splitting tasks
 
 We can trigger an **async** task after the **completion** of another **async** task. In this way, we can chain
 multiple **async** tasks.
@@ -670,9 +669,7 @@ stage.thenApply(x -> square(x))                // Function
       .thenRun(() -> System.out.println());    // Runnable
 ```
 
----
-
-## Chapter 03. Splitting tasks
+**Launching several tasks**
 
 Instead of just launching one task asynchronously and triggering synchronous actions on its output, we can launch
 several tasks at once asynchronously and chain them.
@@ -684,55 +681,253 @@ provides it first. Design the API for same.
 
 **Solution**
 
-We can use `CompletableFuture.anyOf()` method.
-
-```
-Supplier<MarketData> reutersMD = () -> getMarketDataFromReuters();
-Supplier<MarketData> bloombergMD = () -> getMarketDataFromBloomberg();
-Supplier<MarketData> exegyMD = () -> getMarketDataFromExegy();
-
-CompletableFuture<MarketData> cf1 = CompletableFuture.supplyAsync(reutersMD);
-CompletableFuture<MarketData> cf2 = CompletableFuture.supplyAsync(bloombergMD);
-CompletableFuture<MarketData> cf3 = CompletableFuture.supplyAsync(exegyMD);
-
-CompletableFuture<Object> marketData = CompletableFuture.anyOf(cf1, cf2, cf3);
-```
-
-CompletableFuture.anyOf():
+We can use `CompletableFuture.anyOf()` method:
 
 - returns a `CompletableFuture`
 - that completes on the **first** task
 - returns the result of this **first** task
 - **normally** or **exceptionally**
 
+```java
+import com.backstreetbrogrammer.model.MarketData;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+public class CompletableFutureAnyOfDemo {
+
+    public static void main(final String[] args) {
+        final ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        final Supplier<MarketData> fetchMarketDataReuters =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Reuters", "META", random.nextDouble(40D, 60D));
+                };
+
+        final Supplier<MarketData> fetchMarketDataBloomberg =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Bloomberg", "META", random.nextDouble(30D, 70D));
+                };
+
+        final Supplier<MarketData> fetchMarketDataExegy =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Exegy", "META", random.nextDouble(40D, 80D));
+                };
+
+        final CompletableFuture<MarketData> cfReuters = CompletableFuture.supplyAsync(fetchMarketDataReuters);
+        final CompletableFuture<MarketData> cfBloomberg = CompletableFuture.supplyAsync(fetchMarketDataBloomberg);
+        final CompletableFuture<MarketData> cfExegy = CompletableFuture.supplyAsync(fetchMarketDataExegy);
+
+        CompletableFuture.anyOf(cfReuters, cfBloomberg, cfExegy) // CompletableFuture<Object>
+                         .thenAccept(System.out::println)        // CompletableFuture<Void>
+                         .join();
+
+        System.out.printf("cfReuters = %s%n", cfReuters);
+        System.out.printf("cfBloomberg = %s%n", cfBloomberg);
+        System.out.printf("cfExegy = %s%n", cfExegy);
+    }
+}
+```
+
+```
+MarketData{server='Bloomberg', symbol='META', price=62.97547640646644}
+cfReuters = java.util.concurrent.CompletableFuture@614c5515[Completed normally]
+cfBloomberg = java.util.concurrent.CompletableFuture@77b52d12[Completed normally]
+cfExegy = java.util.concurrent.CompletableFuture@2d554825[Completed normally]
+```
+
 #### Follow Up 1: Design an API to get the best price market data from different providers
 
-We can use `CompletableFuture.allOf()` method.
-
-```
-Supplier<MarketData> reutersMD = () -> getMarketDataFromReuters();
-Supplier<MarketData> bloombergMD = () -> getMarketDataFromBloomberg();
-Supplier<MarketData> exegyMD = () -> getMarketDataFromExegy();
-
-CompletableFuture<MarketData> cf1 = CompletableFuture.supplyAsync(reutersMD);
-CompletableFuture<MarketData> cf2 = CompletableFuture.supplyAsync(bloombergMD);
-CompletableFuture<MarketData> cf3 = CompletableFuture.supplyAsync(exegyMD);
-
-CompletableFuture<Void> done = CompletableFuture.allOf(cf1, cf2, cf3);
-
-MarketData bestMarketData = done.thenApply(v -> Stream.of(cf1, cf2, cf3)
-                                                      .map(CompletableFuture::join)
-                                                      .min(comparing(MarketData::getPrice))
-                                                      .orElseThrow())
-                                          ).join();
-```
-
-CompletableFuture.allOf():
+We can use `CompletableFuture.allOf()` method:
 
 - returns a `CompletableFuture`
 - that completes on **all** the tasks
 - returns **null** or **exceptionally**
 - **normally** or **exceptionally**
 
+```java
+import com.backstreetbrogrammer.model.MarketData;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
+import static java.util.Comparator.comparing;
+
+public class CompletableFutureAllOfDemo {
+
+    public static void main(final String[] args) {
+        final ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        final Supplier<MarketData> fetchMarketDataReuters =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Reuters", "META", random.nextDouble(40D, 60D));
+                };
+
+        final Supplier<MarketData> fetchMarketDataBloomberg =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Bloomberg", "META", random.nextDouble(30D, 70D));
+                };
+
+        final Supplier<MarketData> fetchMarketDataExegy =
+                () -> {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
+                    } catch (final InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MarketData("Exegy", "META", random.nextDouble(40D, 80D));
+                };
+
+        final CompletableFuture<MarketData> cfReuters = CompletableFuture.supplyAsync(fetchMarketDataReuters);
+        final CompletableFuture<MarketData> cfBloomberg = CompletableFuture.supplyAsync(fetchMarketDataBloomberg);
+        final CompletableFuture<MarketData> cfExegy = CompletableFuture.supplyAsync(fetchMarketDataExegy);
+
+        final CompletableFuture<Void> done = CompletableFuture.allOf(cfReuters, cfBloomberg, cfExegy);
+
+        final MarketData bestMarketData =
+                done.thenApply(v -> Stream.of(cfReuters, cfBloomberg, cfExegy)  // Stream<CompletableFuture<MarketData>>
+                                          .map(CompletableFuture::join)         // Stream<MarketData>
+                                          .min(comparing(MarketData::getPrice)) // Optional<MarketData>
+                                          .orElseThrow()
+                              ).join();
+
+        System.out.printf("Best Priced Market Data: %s%n", bestMarketData);
+    }
+}
+```
+
+**Output**
+
+```
+Best Priced Market Data: MarketData{server='Reuters', symbol='META', price=56.48773820323322}
+```
+
 ### Chaining asynchronous tasks
+
+The best part of the `CompletableFuture` API is the ability to combine `CompletableFuture` instances in a chain of
+computation steps.
+
+The result of this chaining is itself a `CompletableFuture` that allows further chaining and combining. This approach is
+ubiquitous in functional languages and is often referred to as a **monadic design pattern**.
+
+Basic building blocks of the **monadic design pattern**:
+
+- `thenApply()`
+- `thenCompose()`
+
+Both methods receive a function and apply it to the computation result, but the `thenCompose(flatMap)` method receives a
+function that returns another object of the same type. This functional structure allows composing the instances of these
+classes as building blocks.
+
+`thenApply()`
+
+We can use this method to work with the result of the previous call. However, a key point to remember is that the return
+type will be combined of all calls.
+
+So this method is useful when we want to **transform** the result of a `CompletableFuture` call:
+
+```
+        final CompletableFuture<MarketData> marketDataCF = CompletableFuture.supplyAsync(() -> getMarketData());
+        final CompletableFuture<Database> dbCF = marketDataCF.thenApply(marketData -> writeToDB(marketData));
+        final CompletableFuture<Email> emailCF = dbCF.thenApply(db -> emailDatabaseDetails(db));
+```
+
+`thenCompose()`
+
+The `thenCompose()` is similar to `thenApply()` in that both return a new `CompletionStage`.
+
+However, `thenCompose()` uses the previous stage as the argument. It will **flatten** and return a `Future` with the
+result directly, rather than a **nested** future as we observed in `thenApply()`.
+
+Note that the difference between `thenApply()` and `thenCompose()` is analogous to the difference between `map()` and
+`flatMap()`.
+
+In the following example, we use the `thenCompose()` method to chain two `Futures` sequentially:
+
+```
+    @Test
+    void testThenComposeMethod() throws ExecutionException, InterruptedException {
+        final CompletableFuture<String> completableFuture
+                = CompletableFuture.supplyAsync(() -> "Hello")
+                                   .thenCompose(s -> CompletableFuture.supplyAsync(
+                                           () -> String.format("%s Students", s)));
+
+        assertEquals("Hello Students", completableFuture.get());
+    }
+```
+
+Notice that `thenCompose()` method takes a function that returns a `CompletableFuture` instance.
+
+The argument of this function is the **result** of the previous computation step.
+
+This allows us to use this value inside the next `CompletableFuture`'s lambda.
+
+`thenCombine()`
+
+If we want to execute two **independent** `Futures` and do something with their results, we can use the `thenCombine()`
+method that accepts a `Future` and a `Function` with two arguments to process both results:
+
+```
+    @Test
+    void testThenCombineMethod() throws ExecutionException, InterruptedException {
+        final CompletableFuture<String> completableFuture
+                = CompletableFuture.supplyAsync(() -> "Hello")
+                                   .thenCombine(CompletableFuture.supplyAsync(
+                                           () -> " Students"), (s1, s2) -> s1 + s2);
+
+        assertEquals("Hello Students", completableFuture.get());
+    }
+```
+
+`thenAcceptBoth()`
+
+A simpler case is when we want to do something with two `Futures`' results but don't need to pass any resulting value
+down a `Future` chain. The `thenAcceptBoth()` method is there to help:
+
+```
+    @Test
+    void testThenAcceptBoth() throws ExecutionException, InterruptedException {
+        final CompletableFuture<Void> completableFuture
+                = CompletableFuture.supplyAsync(() -> "Hello")
+                                   .thenAcceptBoth(CompletableFuture.supplyAsync(() -> " Students"),
+                                                   (s1, s2) -> System.out.println(s1 + s2));
+        assertNull(completableFuture.get());
+    }
+```
+
+**Output**
+
+```
+Hello Students
+```
 

@@ -1,4 +1,4 @@
-package com.backstreetbrogrammer.ch02_chainingTasks;
+package com.backstreetbrogrammer.ch02_chainingAndSplittingTasks;
 
 import com.backstreetbrogrammer.model.Database;
 import com.backstreetbrogrammer.model.Email;
