@@ -14,9 +14,11 @@ Tools used:
 1. [Introduction to asynchronous programming](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-01-introduction-to-asynchronous-programming)
     - [Synchronous vs Asynchronous](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#synchronous-vs-asynchronous)
     - [Introduction to CompletableFuture](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#introduction-to-completablefuture)
-    - [Interview Problem 1 (SCB): Design an API to fetch the best market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-1-scb-design-an-api-to-fetch-the-best-market-data-from-different-providers)
+        - [Using CompletableFuture as a Simple Future](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#using-completablefuture-as-a-simple-future)
+        - [CompletableFuture sync and async methods](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#completablefuture-sync-and-async-methods)
+    - [Interview Problem 1 (SCB): Design an API to fetch the best price market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-1-scb-design-an-api-to-fetch-the-best-price-market-data-from-different-providers)
 2. [Chaining tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-02-chaining-tasks)
-3. Splitting tasks
+3. [Splitting tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-03-splitting-tasks)
 4. Controlling threads executing tasks
 5. Error handling
 6. Best patterns
@@ -136,8 +138,86 @@ programming.
 
 The `CompletableFuture` class implements `CompletionStage` interface and the `Future` interface.
 
+#### Using CompletableFuture as a Simple Future
+
+`CompletableFuture` class implements the `Future` interface so that we can use it as a `Future` implementation but with
+additional **completion** logic.
+
+For example, we can create an instance of `CompletableFuture` class with a **no-arg** constructor to represent some
+future result, hand it out to the consumers, and complete it at some time in the future using the **complete** method.
+The consumers may use the **get** method to **block** the current thread until this result is provided.
+
+In the example below, we have a method that creates a `CompletableFuture` instance, then spins off some computation in
+another thread and returns the `Future` immediately.
+
+When the computation is done, the method **completes** the `Future` by providing the result to the **complete** method:
+
+```java
+import java.util.concurrent.*;
+
+public class CompletableFutureAsFuture {
+
+    public Future<String> calculateAsync() {
+        final CompletableFuture<String> completableFuture = new CompletableFuture<>();
+
+        Executors.newCachedThreadPool().submit(() -> {
+            TimeUnit.MILLISECONDS.sleep(500L);
+            completableFuture.complete("Hello Students");
+            return null;
+        });
+
+        return completableFuture;
+    }
+
+    public static void main(final String[] args) throws ExecutionException, InterruptedException {
+        final CompletableFutureAsFuture obj = new CompletableFutureAsFuture();
+        final Future<String> completableFuture = obj.calculateAsync();
+        final String result = completableFuture.get(); // blocking call
+        System.out.println(result);
+    }
+}
+```
+
+If we already know the result of a computation, we can use the static `completedFuture()` method with an argument that
+represents the result of this computation. Consequently, the `get()` method of the `Future` will never block,
+immediately returning this result instead:
+
+```
+Future<String> completableFuture = 
+  CompletableFuture.completedFuture("Hello Students");
+
+// ...
+
+String result = completableFuture.get(); // will return immediately
+assertEquals("Hello Students", result);
+```
+
+#### CompletableFuture sync and async methods
+
 `CompletableFuture` offers an extensive API consisting of more than `50` methods. Many of these methods are available in
 two variants: **non-async** and **async**.
+
+Static methods `runAsync()` and `supplyAsync()` allow us to create a `CompletableFuture` instance out of `Runnable` and
+`Supplier` functional types correspondingly.
+
+The `Runnable` interface is the same old interface used in threads and does not allow to return a value.
+
+The `Supplier` interface is a generic functional interface with a single method that has no arguments and returns a
+value of a parameterized type.
+
+This allows us to provide an instance of the `Supplier` as a lambda expression that does the calculation and returns the
+result.
+
+```
+CompletableFuture<String> future
+  = CompletableFuture.supplyAsync(() -> "Hello Students");
+
+// ...
+
+assertEquals("Hello Students", future.get());
+```
+
+Other examples:
 
 **Non-async methods**
 
@@ -221,7 +301,7 @@ This is the thread name given to the thread pool in `Executor`.
 As expected, when using the overloaded method, the `CompletableFuture` will no longer use the common `ForkJoinPool`
 threads but the `Executor` thread pool.
 
-### Interview Problem 1 (SCB): Design an API to fetch the best market data from different providers
+### Interview Problem 1 (SCB): Design an API to fetch the best price market data from different providers
 
 We have 3 different stock market data providers which provide market data in real time.
 
@@ -586,4 +666,70 @@ stage.thenApply(x -> square(x))                // Function
       .thenAccept(x -> System.out.print(x))    // Consumer
       .thenRun(() -> System.out.println());    // Runnable
 ```
+
+---
+
+## Chapter 03. Splitting tasks
+
+Instead of just launching one task asynchronously and triggering synchronous actions on its output, we can launch
+several tasks at once asynchronously and chain them.
+
+### Interview Problem 2 (SCB): Design an API to consume the fastest first market data received from different providers
+
+Suppose we have 3 market data providers: Reuters, Bloomberg and Exegy. We want to get the fastest market data whichever
+provides it first. Design the API for same.
+
+**Solution**
+
+We can use `CompletableFuture.anyOf()` method.
+
+```
+Supplier<MarketData> reutersMD = () -> getMarketDataFromReuters();
+Supplier<MarketData> bloombergMD = () -> getMarketDataFromBloomberg();
+Supplier<MarketData> exegyMD = () -> getMarketDataFromExegy();
+
+CompletableFuture<MarketData> cf1 = CompletableFuture.supplyAsync(reutersMD);
+CompletableFuture<MarketData> cf2 = CompletableFuture.supplyAsync(bloombergMD);
+CompletableFuture<MarketData> cf3 = CompletableFuture.supplyAsync(exegyMD);
+
+CompletableFuture<Object> marketData = CompletableFuture.anyOf(cf1, cf2, cf3);
+```
+
+CompletableFuture.anyOf():
+
+- returns a `CompletableFuture`
+- that completes on the **first** task
+- returns the result of this **first** task
+- **normally** or **exceptionally**
+
+#### Follow Up 1: Design an API to get the best price market data from different providers
+
+We can use `CompletableFuture.allOf()` method.
+
+```
+Supplier<MarketData> reutersMD = () -> getMarketDataFromReuters();
+Supplier<MarketData> bloombergMD = () -> getMarketDataFromBloomberg();
+Supplier<MarketData> exegyMD = () -> getMarketDataFromExegy();
+
+CompletableFuture<MarketData> cf1 = CompletableFuture.supplyAsync(reutersMD);
+CompletableFuture<MarketData> cf2 = CompletableFuture.supplyAsync(bloombergMD);
+CompletableFuture<MarketData> cf3 = CompletableFuture.supplyAsync(exegyMD);
+
+CompletableFuture<Void> done = CompletableFuture.allOf(cf1, cf2, cf3);
+
+MarketData bestMarketData = done.thenApply(v -> Stream.of(cf1, cf2, cf3)
+                                                      .map(CompletableFuture::join)
+                                                      .min(comparing(MarketData::getPrice))
+                                                      .orElseThrow())
+                                          ).join();
+```
+
+CompletableFuture.allOf():
+
+- returns a `CompletableFuture`
+- that completes on **all** the tasks
+- returns **null** or **exceptionally**
+- **normally** or **exceptionally**
+
+### Chaining asynchronous tasks
 
