@@ -21,7 +21,7 @@ Tools used:
     - [Interview Problem 2 (SCB): Design an API to consume the fastest first market data received from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-2-scb-design-an-api-to-consume-the-fastest-first-market-data-received-from-different-providers)
         - [Follow Up 1: Design an API to get the best price market data from different providers](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#follow-up-1-design-an-api-to-get-the-best-price-market-data-from-different-providers)
     - [Chaining asynchronous tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chaining-asynchronous-tasks)
-    - [Interview Problem 3 (SCB): Sort and Merge given array](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chaining-asynchronous-tasks)
+    - [Interview Problem 3 (SCB): Sort and Merge given array](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-3-scb-sort-and-merge-given-array)
 3. [Controlling threads executing tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-03-controlling-threads-executing-tasks)
 4. Error handling
 5. Best patterns
@@ -989,3 +989,4 @@ Use `CompletableFuture` to solve the same.
 ---
 
 ## Chapter 03. Controlling threads executing tasks
+
