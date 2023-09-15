@@ -25,6 +25,7 @@ Tools used:
 3. [Controlling threads executing tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-03-controlling-threads-executing-tasks)
 4. [Error handling](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-04-error-handling)
 5. [Best patterns](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-05-best-patterns)
+    - [Creating a CompletableFuture](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#creating-a-completablefuture)
 
 ---
 
@@ -1144,3 +1145,61 @@ Thus, we can choose how the `CompletableFuture` API can handle exceptions:
 
 ## Chapter 05. Best patterns
 
+### Creating a CompletableFuture
+
+| Task           | Example                  | Pattern                                                                    | Executor |
+|----------------|--------------------------|----------------------------------------------------------------------------|----------|
+| Supplier       | () -> getMarketData()    | CompletableFuture<MarketData> cf = CompletableFuture.supplyAsync(supplier) | Yes      |
+| Runnable       | () -> logger.info("Done") | CompletableFuture<Void> cf = CompletableFuture.runAsync(runnable)          | Yes      |
+
+**Bulk Tasks**
+
+| Task                            | Pattern                                                               | Executor |
+|---------------------------------|-----------------------------------------------------------------------|----------|
+| Completes when all completes    | CompletableFuture<Void> cf = CompletableFuture.allOf(cf1, cf2, cf3)   | No       |
+| Completes on one of the fastest | CompletableFuture<Object> cf = CompletableFuture.anyOf(cf1, cf2, cf3) | No       |
+
+### CompletableFuture supported tasks
+
+| Task     | Example                        | Method             | CF Method    |
+|----------|--------------------------------|--------------------|--------------|
+| Runnable | () -> logger.info("Done")      | void run()         | thenRun()    |
+| Consumer | n -> logger.info("Done: " + n) | void accept(T obj) | thenAccept() |
+| Function | id -> readUserFromDB(id)       | R apply(T obj)     | thenApply()  |
+
+### Chaining tasks
+
+**1 – 1 CompletableFuture Chaining**
+
+| CF Method     | Parameter Type                  | Async              | Executor     |
+|---------------|---------------------------------|--------------------|--------------|
+| thenRun()     | Runnable                        | Yes                | Yes          |
+| thenAccept()  | Consumer<T>                     | Yes                | Yes          |
+| thenApply()   | Function<T, U>                  | Yes                | Yes          |
+| thenCompose() | Function<T, CompletionStage<U>> | Yes                | Yes          |
+
+**2 – 1 CompletableFuture Chaining**
+
+| CF Method        | Parameter Type      | Async              | Executor     |
+|------------------|---------------------|--------------------|--------------|
+| runAfterBoth()   | Runnable            | Yes                | Yes          |
+| thenAcceptBoth() | BiConsumer<T, U>    | Yes                | Yes          |
+| thenCombine()    | BiFunction<T, U, V> | Yes                | Yes          |
+| runAfterEither() | Runnable            | Yes                | Yes          |
+| acceptEither()   | Consumer<T>         | Yes                | Yes          |
+| applyToEither()  | Function<T, V>      | Yes                | Yes          |
+
+### Exception Handling
+
+| CF Method       | Parameter Type                  | Can Recover | Async |
+|-----------------|---------------------------------|-------------|-------|
+| exceptionally() | Function<Throwable, T>          | Yes         | Yes   |
+| whenComplete()  | BiConsumer<T, Throwable>        | No          | Yes   |
+| handle()        | BiFunction<T, Throwable, U>     | Yes         | Yes   |
+
+### Performances
+
+- Identify in-memory vs. I/O computation
+- Use asynchronous calls for long-running tasks
+- Use executors with the right number of threads
+- Avoid moving data from one thread to the other
