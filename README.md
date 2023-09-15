@@ -26,6 +26,10 @@ Tools used:
 4. [Error handling](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-04-error-handling)
 5. [Best patterns](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-05-best-patterns)
     - [Creating a CompletableFuture](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#creating-a-completablefuture)
+    - [CompletableFuture supported tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#completablefuture-supported-tasks)
+    - [Chaining tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chaining-tasks)
+    - [Exception Handling](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#exception-handling)
+    - [Performances](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#performances)
 
 ---
 
