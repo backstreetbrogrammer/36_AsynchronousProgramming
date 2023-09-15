@@ -23,8 +23,8 @@ Tools used:
     - [Chaining asynchronous tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chaining-asynchronous-tasks)
     - [Interview Problem 3 (SCB): Sort and Merge given array](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#interview-problem-3-scb-sort-and-merge-given-array)
 3. [Controlling threads executing tasks](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-03-controlling-threads-executing-tasks)
-4. Error handling
-5. Best patterns
+4. [Error handling](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-04-error-handling)
+5. [Best patterns](https://github.com/backstreetbrogrammer/36_AsynchronousProgramming#chapter-05-best-patterns)
 
 ---
 
@@ -989,4 +989,158 @@ Use `CompletableFuture` to solve the same.
 ---
 
 ## Chapter 03. Controlling threads executing tasks
+
+We have a total control on the threads that are executing our tasks:
+
+- What are the threads used by default?
+- How can we control these threads?
+
+**Threads used by default**
+
+Asynchronous tasks are executed in the common `ForkJoinPool` by default.
+
+- The common `ForkJoinPool` is a pool of threads
+- The number of threads is the number of virtual cores on our machine
+- Each thread has its own queue of task
+- Each queue can steal tasks from another queue - **work stealing**
+
+However, asynchronous programming is mostly used for I/O operations where we may need **more** threads than number of
+cores.
+
+For example, we have an application where we need:
+
+- a pool of threads for our **DB** operations
+- another one for our **disk** operations
+- another one for our **in-memory** operations (like maps)
+- and last one for GUI operations that needs to operate in a **special thread**
+
+We can specify an `Executor` for all the `CompetableFuture` operations:
+
+- either we pass an executor
+- or we call a method ending with **async** that takes an executor
+
+By default, a task is executed in the same thread as the one that created it.
+
+If the method name ends with **ASYNC**, then it **may** be executed in a different thread.
+
+```
+        final CompletableFuture<MarketData> marketDataCF = CompletableFuture.supplyAsync(() -> getMarketData());
+        final CompletableFuture<Database> dbCF = marketDataCF.thenApply(marketData -> writeToDB(marketData));
+        final CompletableFuture<Email> emailCF = dbCF.thenApply(db -> emailDatabaseDetails(db));
+        
+        emailCF.thenApply(email -> updateGUI(email));
+```
+
+If we call the **ASYNC** versions:
+
+```
+        final CompletableFuture<MarketData> marketDataCF = CompletableFuture.supplyAsync(() -> getMarketData());
+        final CompletableFuture<Database> dbCF = marketDataCF.thenApplyAsync(marketData -> writeToDB(marketData));
+        final CompletableFuture<Email> emailCF = dbCF.thenApplyAsync(db -> emailDatabaseDetails(db));
+        
+        emailCF.thenApplyAsync(email -> updateGUI(email));
+```
+
+Now, we can pass an `Executor` to these methods, thus using the threads from the executor's thread pools:
+
+```
+        final Executor executor = Executors.newFixedThreadPool(4);
+        final CompletableFuture<MarketData> marketDataCF = CompletableFuture.supplyAsync(() -> getMarketData(), executor);
+        final CompletableFuture<Database> dbCF = marketDataCF.thenApplyAsync(marketData -> writeToDB(marketData), executor);
+        final CompletableFuture<Email> emailCF = dbCF.thenApplyAsync(db -> emailDatabaseDetails(db), executor);
+        
+        emailCF.thenApplyAsync(email -> updateGUI(email), SwingUtilities::invokeLater);
+```
+
+---
+
+## Chapter 04. Error handling
+
+CompletableFuture are often used for I/O operations. These operations may fail with `Exceptions`.
+
+We have two ways of handling them:
+
+- reporting them
+- recovering from them
+
+**When a Task Completes Exceptionally**
+
+If a task completes with an `Exception`, then:
+
+- an exception is thrown when we try to **get** the result
+- all the **downstream** tasks will also throw an exception
+
+There are two ways of dealing with exceptions:
+
+- recovering and providing a default value
+- forwarding the exception
+
+The `CompletableFuture` API has 3 methods to implement these two behaviors and all these can be executed in a specific
+`Executor`.
+
+**Recovering and Providing a Default Value**
+
+```
+        final CompletableFuture<MarketData> marketDataCF = CompletableFuture.supplyAsync(() -> getMarketData());
+        ...
+```
+
+If `getMarketData()` throws an exception, then `marketDataCF` completes with an **exception**.
+
+Let's use `exceptionally()` to recover and provide a **default** value.
+
+```
+        final CompletableFuture<MarketData> marketDataCF 
+                           = CompletableFuture.supplyAsync(() -> getMarketData())
+                                              .exceptionally(e -> {
+                                                                System.out.printf("Exception = %s%n", e.getMessage());
+                                                                return new MarketData("Unknown", "Unknown", -1D);
+                                               });
+        ...
+```
+
+If `getMarketData()` throws an exception, then `marketDataCF` completes with the provided default value.
+
+**Handling a Result and an Exception**
+
+There are two more patterns, that takes both the `Exception` and the **result** as parameters:
+
+- the exception may be null
+- the result may be null
+
+```
+        final CompletableFuture<MarketData> marketDataCF = CompletableFuture.supplyAsync(() -> getMarketData());
+        marketDataCF.whenComplete(
+         (marketData, exception) -> {
+               if (exception != null) {
+                 System.out.printf("Exception = %s%n", e.getMessage());
+               }  
+         });
+```
+
+`whenComplete()` takes a `BiConsumer`. It is not meant to be followed by any more task.
+
+Similarly, we can also use `handle()` method.
+
+```
+        final CompletableFuture<MarketData> marketDataCF = CompletableFuture.supplyAsync(() -> getMarketData());
+        marketDataCF.handle(
+         (marketData, exception) -> {
+               if (exception == null) {
+                  return marketData;
+               } else {
+                  System.out.printf("Exception = %s%n", e.getMessage());
+                  return new MarketData("Unknown", "Unknown", -1D);
+               } 
+         });
+```
+
+Thus, we can choose how the `CompletableFuture` API can handle exceptions:
+
+- Just let them crash our data processing pipeline
+- Recover from them by providing default value
+
+---
+
+## Chapter 05. Best patterns
 

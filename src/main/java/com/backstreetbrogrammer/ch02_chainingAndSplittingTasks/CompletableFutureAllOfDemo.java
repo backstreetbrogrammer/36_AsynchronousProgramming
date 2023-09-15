@@ -20,7 +20,7 @@ public class CompletableFutureAllOfDemo {
                     try {
                         TimeUnit.MILLISECONDS.sleep(random.nextLong(80L, 120L));
                     } catch (final InterruptedException e) {
-                        throw new RuntimeException(e);
+                        throw new RuntimeException(e.getMessage());
                     }
                     return new MarketData("Reuters", "META", random.nextDouble(40D, 60D));
                 };
